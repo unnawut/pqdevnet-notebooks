@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+**/.venv/
+**/env/
+
+.env
+.mcp.json
+**/mcp.json
+**/.claude
+
+**/*.ignore
+
+validators/
+
+.DS_Store
+.idea
