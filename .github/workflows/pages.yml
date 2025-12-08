@@ -32,21 +32,22 @@ jobs:
         run: uv sync
 
       - name: Convert notebooks to HTML
+        working-directory: peerdas
         env:
           CLICKHOUSE_HOST: ${{ secrets.CLICKHOUSE_HOST }}
           CLICKHOUSE_PORT: ${{ secrets.CLICKHOUSE_PORT }}
           CLICKHOUSE_USER: ${{ secrets.CLICKHOUSE_USER }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_PASSWORD }}
         run: |
-          mkdir -p _site
+          mkdir -p ../_site
           TODAY=$(date -u +%Y-%m-%d)
-          for notebook in peerdas/*.ipynb; do
-            BASENAME=$(basename "$notebook" .ipynb)
-            uv run papermill "$notebook" "_site/$BASENAME.ipynb" \
+          for notebook in *.ipynb; do
+            BASENAME="${notebook%.ipynb}"
+            uv run papermill "$notebook" "${BASENAME}_out.ipynb" \
               -p TARGET_DATE "$TODAY" \
               -p FORCE_QUERY true
-            uv run jupyter nbconvert --to html --no-input "_site/$BASENAME.ipynb"
-            rm "_site/$BASENAME.ipynb"
+            uv run jupyter nbconvert --to html --no-input "${BASENAME}_out.ipynb" --output "../_site/$BASENAME.html"
+            rm "${BASENAME}_out.ipynb"
           done
 
       - name: Create index page
