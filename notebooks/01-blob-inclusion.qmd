@@ -40,7 +40,7 @@ fig = px.scatter(
 )
 fig.update_layout(
     showlegend=False,
-    yaxis=dict(dtick=1, range=[-0.5, 15]),
+    yaxis=dict(dtick=1, range=[-0.5, 15.5]),
     coloraxis_colorbar=dict(title="Blobs"),
     height=600,
 )
