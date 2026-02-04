@@ -1,12 +1,7 @@
-name: Sync
+name: Sync (Upstream - Disabled for Lean fork)
 
+# Disabled for Lean fork - use lean-sync.yml instead
 on:
-  schedule:
-    - cron: "0 1 * * *" # 1am UTC daily
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       force:
@@ -14,6 +9,20 @@ on:
         required: false
         default: false
         type: boolean
+# on:
+#   schedule:
+#     - cron: "0 1 * * *" # 1am UTC daily
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+#   workflow_dispatch:
+#     inputs:
+#       force:
+#         description: "Force fetch and re-render all notebooks"
+#         required: false
+#         default: false
+#         type: boolean
 
 permissions:
   contents: read

@@ -1,0 +1,199 @@
+name: Lean Sync
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 1am UTC daily
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force fetch and re-render all notebooks"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: "lean-sync-${{ github.head_ref || github.ref_name }}"
+  cancel-in-progress: true
+
+env:
+  CACHE_VERSION: v1
+  FORCE_RENDER: ${{ github.event.inputs.force || 'false' }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ============================================
+      # Setup Tools
+      # ============================================
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install Python dependencies
+        run: uv sync
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+          cache-dependency-path: site/pnpm-lock.yaml
+
+      - name: Install Node dependencies
+        run: cd site && pnpm install
+
+      # ============================================
+      # Restore Caches
+      # ============================================
+      - name: Get cache keys
+        id: cache-keys
+        run: |
+          # Hash of Lean script files for data cache
+          QUERY_HASH=$(find scripts/lean -name "*.py" -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
+          echo "query_hash=$QUERY_HASH" >> $GITHUB_OUTPUT
+
+          # Hash of notebook source files for render cache
+          NOTEBOOK_HASH=$(find notebooks -name "lean-*.ipynb" -type f -exec sha256sum {} \; | sort | sha256sum | cut -c1-16)
+          echo "notebook_hash=$NOTEBOOK_HASH" >> $GITHUB_OUTPUT
+
+          # Today's date for cache partitioning
+          echo "date=$(date -u +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Restore data cache
+        uses: actions/cache/restore@v4
+        id: data-cache
+        with:
+          path: notebooks/data
+          key: lean-${{ env.CACHE_VERSION }}-data-${{ steps.cache-keys.outputs.query_hash }}-${{ steps.cache-keys.outputs.date }}
+          restore-keys: |
+            lean-${{ env.CACHE_VERSION }}-data-${{ steps.cache-keys.outputs.query_hash }}-
+            lean-${{ env.CACHE_VERSION }}-data-
+
+      - name: Restore rendered cache
+        uses: actions/cache/restore@v4
+        id: rendered-cache
+        with:
+          path: site/rendered
+          key: lean-${{ env.CACHE_VERSION }}-rendered-${{ steps.cache-keys.outputs.notebook_hash }}-${{ steps.cache-keys.outputs.date }}
+          restore-keys: |
+            lean-${{ env.CACHE_VERSION }}-rendered-${{ steps.cache-keys.outputs.notebook_hash }}-
+            lean-${{ env.CACHE_VERSION }}-rendered-
+
+      - name: Initialize directories
+        run: |
+          mkdir -p notebooks/data site/rendered
+          # Create empty Lean manifest if none exists
+          if [ ! -f "notebooks/data/devnets.json" ]; then
+            echo '{"schema_version": "1.0", "devnets": []}' > notebooks/data/devnets.json
+          fi
+          if [ ! -f "site/rendered/manifest.json" ]; then
+            echo '{"latest_devnet": "", "devnets": {}}' > site/rendered/manifest.json
+          fi
+
+      # ============================================
+      # Lean Consensus Pipeline
+      # ============================================
+      - name: Detect devnets
+        env:
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+        run: just detect-devnets
+
+      - name: Fetch devnet data
+        env:
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+        run: just fetch-devnet all
+
+      - name: Render notebooks
+        run: |
+          if [ "${{ env.FORCE_RENDER }}" = "true" ]; then
+            uv run python scripts/lean/render_notebooks.py --devnet all --force
+          else
+            just render-devnet all
+          fi
+
+      # ============================================
+      # Build Site
+      # ============================================
+      - name: Build site
+        run: just build
+
+      - name: Copy data to dist
+        run: just copy-data
+
+      # ============================================
+      # Save Caches
+      # ============================================
+      - name: Save data cache
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        uses: actions/cache/save@v4
+        with:
+          path: notebooks/data
+          key: lean-${{ env.CACHE_VERSION }}-data-${{ steps.cache-keys.outputs.query_hash }}-${{ steps.cache-keys.outputs.date }}
+
+      - name: Save rendered cache
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        uses: actions/cache/save@v4
+        with:
+          path: site/rendered
+          key: lean-${{ env.CACHE_VERSION }}-rendered-${{ steps.cache-keys.outputs.notebook_hash }}-${{ steps.cache-keys.outputs.date }}
+
+      # ============================================
+      # Upload Artifacts (for traceability)
+      # ============================================
+      - name: Upload data artifact
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-data-${{ steps.cache-keys.outputs.date }}
+          path: notebooks/data
+          retention-days: 2
+
+      - name: Upload rendered artifact
+        if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-rendered-${{ steps.cache-keys.outputs.date }}
+          path: site/rendered
+          retention-days: 2
+
+      # ============================================
+      # Deploy to GitHub Pages
+      # ============================================
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        id: deployment
+        uses: actions/deploy-pages@v4
