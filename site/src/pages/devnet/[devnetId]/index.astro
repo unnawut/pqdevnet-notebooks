@@ -1,0 +1,101 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Icon from '@/components/Icon.astro';
+import { LeanSiteData, getLeanNotebooks, getAvailableDevnets } from '@/lib/LeanSiteData';
+
+export function getStaticPaths() {
+  const devnets = getAvailableDevnets();
+  return devnets.map((devnet) => ({
+    params: { devnetId: devnet },
+  }));
+}
+
+const { devnetId } = Astro.params;
+const leanData = LeanSiteData.load();
+const notebooks = leanData.notebooks;
+
+if (!leanData.hasDevnet(devnetId!)) {
+  return Astro.redirect('/404');
+}
+
+const base = import.meta.env.BASE_URL;
+const isLatest = devnetId === leanData.latestDevnet;
+
+// Format devnet ID for display
+const formatDevnetDisplay = (id: string) => {
+  const match = id.match(/devnet-(\d+)/);
+  if (match) {
+    return `Devnet ${match[1]}`;
+  }
+  return id;
+};
+---
+
+<BaseLayout title={`Lean Consensus - ${formatDevnetDisplay(devnetId!)}`} description="Lean Consensus metrics analysis">
+  <div class="mx-auto max-w-4xl">
+    <header class="mb-8">
+      <div class="flex items-center gap-3 mb-2">
+        <span class="bg-primary text-primary-foreground px-2 py-1 text-xs font-mono uppercase tracking-wider">
+          Lean Consensus
+        </span>
+        {isLatest && (
+          <span class="border border-primary/30 text-primary px-2 py-1 text-xs font-mono uppercase tracking-wider">
+            Latest
+          </span>
+        )}
+      </div>
+      <h1 class="font-serif text-4xl font-normal -tracking-tight mb-2">
+        {formatDevnetDisplay(devnetId!)}
+      </h1>
+      <p class="text-muted-foreground">
+        Post-quantum cryptography performance analysis for Ethereum consensus layer.
+      </p>
+    </header>
+
+    <section>
+      <h2 class="text-sm font-mono uppercase tracking-wider text-muted-foreground mb-4">
+        Available Notebooks
+      </h2>
+      <ul class="space-y-2">
+        {notebooks.map((nb) => {
+          const notebookData = leanData.getNotebookData(devnetId!, nb.id);
+          const hasRendered = !!notebookData;
+          const href = hasRendered ? `${base}devnet/${devnetId}/${nb.id}` : null;
+
+          return (
+            <li>
+              <a
+                href={href || '#'}
+                class:list={[
+                  'group flex items-center gap-4 p-4 border transition-all',
+                  hasRendered
+                    ? 'hover:border-primary hover:bg-muted cursor-pointer'
+                    : 'opacity-50 cursor-not-allowed',
+                ]}
+              >
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <Icon name={nb.icon || 'FileText'} size={20} />
+                </span>
+                <div class="flex-1 min-w-0">
+                  <h3 class="font-medium text-foreground group-hover:text-primary transition-colors">
+                    {nb.title}
+                  </h3>
+                  {nb.description && (
+                    <p class="text-sm text-muted-foreground truncate">
+                      {nb.description}
+                    </p>
+                  )}
+                </div>
+                {hasRendered ? (
+                  <Icon name="ChevronRight" size={16} class="text-muted-foreground group-hover:text-primary transition-colors" />
+                ) : (
+                  <span class="text-xs text-muted-foreground">Not rendered</span>
+                )}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  </div>
+</BaseLayout>

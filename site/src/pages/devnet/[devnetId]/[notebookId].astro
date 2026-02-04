@@ -1,0 +1,44 @@
+---
+import DevnetLayout from '@/layouts/DevnetLayout.astro';
+import { extractHeadings } from '@/lib/extract-headings';
+import { LeanSiteData, getLeanNotebooks, getAvailableDevnets } from '@/lib/LeanSiteData';
+
+export function getStaticPaths() {
+  const notebooks = getLeanNotebooks();
+  const devnets = getAvailableDevnets();
+
+  const paths = [];
+  for (const devnet of devnets) {
+    for (const nb of notebooks) {
+      paths.push({
+        params: { devnetId: devnet, notebookId: nb.id },
+      });
+    }
+  }
+  return paths;
+}
+
+const { devnetId, notebookId } = Astro.params;
+const leanData = LeanSiteData.load();
+const notebook = leanData.getNotebook(notebookId!);
+
+if (!notebook) {
+  return Astro.redirect('/404');
+}
+
+if (!leanData.hasDevnet(devnetId!)) {
+  return Astro.redirect('/404');
+}
+
+const htmlPath = `${devnetId}/${notebook.id}.html`;
+const headings = extractHeadings(htmlPath);
+---
+
+<DevnetLayout
+  title={notebook.title}
+  description={notebook.description}
+  headings={headings}
+  currentDevnet={devnetId!}
+  notebookId={notebook.id}
+  htmlPath={htmlPath}
+/>

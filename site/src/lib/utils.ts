@@ -30,7 +30,7 @@ function parseDate(dateStr: string): Date {
  * Example: "Wed, Nov 15, 2023"
  */
 export function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return '';
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr || '';
   const date = parseDate(dateStr);
   return format(date, 'EEE, MMM d, yyyy');
 }
@@ -40,7 +40,7 @@ export function formatDisplayDate(dateStr: string): string {
  * Example: "Nov 15"
  */
 export function formatShortDate(dateStr: string): string {
-  if (!dateStr) return '';
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr || '';
   const date = parseDate(dateStr);
   return format(date, 'MMM d');
 }

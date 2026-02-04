@@ -61,8 +61,8 @@ export function MobileNav({ headings, notebooks, latestDate, historicalDates, cu
                   </svg>
                 </span>
                 <span className="flex flex-col leading-none">
-                  <span className="text-foreground font-mono text-[0.75rem] font-bold tracking-wide">ETH P2P</span>
-                  <span className="text-muted-foreground font-serif text-[0.75rem]">Notebooks</span>
+                  <span className="text-foreground font-mono text-[0.75rem] font-bold tracking-wide">LEAN</span>
+                  <span className="text-muted-foreground font-serif text-[0.75rem]">Observatory</span>
                 </span>
               </a>
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
