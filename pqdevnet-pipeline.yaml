@@ -19,19 +19,26 @@ notebooks:
     source: notebooks/pqdevnet/03-consensus.ipynb
     order: 2
 
+  - id: 05-state-transitions
+    title: State Transitions
+    description: State transition processing time percentiles per client
+    icon: Timer
+    source: notebooks/pqdevnet/05-state-transitions.ipynb
+    order: 3
+
   - id: 04-networking
     title: Networking
     description: Peer connections, attestation propagation, bandwidth, and reorgs
     icon: Network
     source: notebooks/pqdevnet/04-networking.ipynb
-    order: 3
+    order: 4
 
   - id: 02-resource-utilization
     title: Resource Utilization
     description: CPU, memory, disk I/O, and network throughput per client
     icon: Activity
     source: notebooks/pqdevnet/02-resource-utilization.ipynb
-    order: 4
+    order: 5
 
 # Settings
 settings:
