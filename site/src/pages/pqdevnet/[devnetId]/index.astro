@@ -20,6 +20,7 @@ if (!pqDevnetData.hasDevnet(devnetId!)) {
 
 const base = import.meta.env.BASE_URL;
 const isLatest = devnetId === pqDevnetData.latestDevnet;
+const devnetInfo = pqDevnetData.getDevnetInfo(devnetId!);
 
 // Format devnet ID for display (e.g., "pqdevnet-20260203T0100Z" -> "PQ Devnet 2026-02-03")
 const formatDevnetDisplay = (id: string) => {
@@ -50,6 +51,30 @@ const formatDevnetDisplay = (id: string) => {
       <p class="text-muted-foreground">
         Post-quantum cryptography performance analysis for Ethereum consensus layer.
       </p>
+      {devnetInfo && (
+        <dl class="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-sm border p-4">
+          <div>
+            <dt class="text-muted-foreground font-mono text-xs uppercase tracking-wider">Duration</dt>
+            <dd class="font-medium">{devnetInfo.duration_hours.toFixed(1)} hours</dd>
+          </div>
+          <div>
+            <dt class="text-muted-foreground font-mono text-xs uppercase tracking-wider">Time Range</dt>
+            <dd class="font-medium">
+              {new Date(devnetInfo.start_time).toISOString().replace('T', ' ').slice(0, 19)} UTC
+              <span class="text-muted-foreground mx-1">&rarr;</span>
+              {new Date(devnetInfo.end_time).toISOString().replace('T', ' ').slice(0, 19)} UTC
+            </dd>
+          </div>
+          <div>
+            <dt class="text-muted-foreground font-mono text-xs uppercase tracking-wider">Slots</dt>
+            <dd class="font-medium font-mono">{devnetInfo.start_slot.toLocaleString()} &rarr; {devnetInfo.end_slot.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt class="text-muted-foreground font-mono text-xs uppercase tracking-wider">Clients ({devnetInfo.clients.length})</dt>
+            <dd class="font-medium">{devnetInfo.clients.join(', ')}</dd>
+          </div>
+        </dl>
+      )}
     </header>
 
     <section>

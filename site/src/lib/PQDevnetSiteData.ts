@@ -24,6 +24,17 @@ export interface PQDevnetManifest {
     updated_at?: string;
 }
 
+export interface PQDevnetInfo {
+    id: string;
+    start_time: string;
+    end_time: string;
+    duration_hours: number;
+    start_slot: number;
+    end_slot: number;
+    clients: string[];
+    notes?: string;
+}
+
 export interface PQDevnetPipelineConfig {
     version?: string;
     notebooks: PQDevnetNotebookConfig[];
@@ -41,10 +52,12 @@ export interface PQDevnetPipelineConfig {
 export class PQDevnetSiteData {
     private readonly manifest: PQDevnetManifest;
     private readonly config: PQDevnetPipelineConfig;
+    private readonly devnetInfoMap: Map<string, PQDevnetInfo>;
 
-    private constructor(manifest: PQDevnetManifest, config: PQDevnetPipelineConfig) {
+    private constructor(manifest: PQDevnetManifest, config: PQDevnetPipelineConfig, devnetInfoMap: Map<string, PQDevnetInfo>) {
         this.manifest = manifest;
         this.config = config;
+        this.devnetInfoMap = devnetInfoMap;
     }
 
     /**
@@ -53,7 +66,8 @@ export class PQDevnetSiteData {
     static load(): PQDevnetSiteData {
         const manifest = PQDevnetSiteData.loadManifest();
         const config = PQDevnetSiteData.loadConfig();
-        return new PQDevnetSiteData(manifest, config);
+        const devnetInfoMap = PQDevnetSiteData.loadDevnetInfo();
+        return new PQDevnetSiteData(manifest, config, devnetInfoMap);
     }
 
     private static loadManifest(): PQDevnetManifest {
@@ -67,6 +81,23 @@ export class PQDevnetSiteData {
             console.error('Failed to load PQ Devnet manifest.json', e);
         }
         return { devnets: {} };
+    }
+
+    private static loadDevnetInfo(): Map<string, PQDevnetInfo> {
+        const devnetsPath = path.join(process.cwd(), '..', 'notebooks', 'data', 'devnets.json');
+        const map = new Map<string, PQDevnetInfo>();
+        try {
+            if (fs.existsSync(devnetsPath)) {
+                const content = fs.readFileSync(devnetsPath, 'utf-8');
+                const data = JSON.parse(content);
+                for (const devnet of data.devnets || []) {
+                    map.set(devnet.id, devnet);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load devnets.json', e);
+        }
+        return map;
     }
 
     private static loadConfig(): PQDevnetPipelineConfig {
@@ -104,6 +135,11 @@ export class PQDevnetSiteData {
     /** Get notebook data for a specific devnet and notebook ID */
     getNotebookData(devnetId: string, notebookId: string): PQDevnetNotebookData | undefined {
         return this.manifest.devnets?.[devnetId]?.[notebookId];
+    }
+
+    /** Get devnet metadata (duration, time range, slots, clients) */
+    getDevnetInfo(devnetId: string): PQDevnetInfo | undefined {
+        return this.devnetInfoMap.get(devnetId);
     }
 
     /** Check if a devnet has data */
